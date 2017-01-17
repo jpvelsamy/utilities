@@ -1,0 +1,92 @@
+import scala.collection.immutable.HashMap
+import HelpCommand.CommandFactory
+
+object CommandLine {
+
+  def main(args: Array[String]): Unit = {
+    println("Starting the utility console")
+    read
+  }
+
+  /**
+   * A simple utility method to read input from the user if needed
+   */
+  def read(): Unit = {
+    val input = scala.io.StdIn.readLine(">")
+    val commandString = input.split("(\\s+)")
+    println("Incoming command sequence ", commandString.mkString(":"))
+    val inputMap = new ConsoleInput
+    inputMap.addInput(commandString)
+    val command = CommandFactory.get(inputMap)
+    command.validate(commandString)
+    val output = command.execute(inputMap)
+    println(output)
+    if (input.isEmpty) () else read
+  }
+
+}
+
+class ConsoleInput() {
+
+  val inputArgs: HashMap[String, String] = HashMap.empty[String, String]
+
+  def addInput(args: Array[String]): Unit = {
+
+    for (i <- 0 until args.length) {
+      val key = args.apply(i)
+      val nextIdx = i + 1
+      if (key.contains("--")) {
+        val finalkey = key.substring(2, key.length());
+        if (nextIdx <= args.length) {
+          val value = args.apply(nextIdx)
+          inputArgs + key -> value
+        }
+      }
+    }
+
+  }
+  def command(): String = {
+    inputArgs.get("command").getOrElse("help")
+  }
+}
+
+case class FailureReason(reason: String)
+trait Command {
+  def execute(commandArgs: ConsoleInput): String
+  def validate(args: Array[String]): Either[Boolean, FailureReason]
+  def help(): String
+}
+
+object HelpCommand extends Command {
+  def execute(commandArgs: ConsoleInput): String = {
+    "This is a help command"
+  }
+
+  def help(): String = {
+    "This is the help section for the help command"
+  }
+
+  def validate(args: Array[String]): Either[Boolean, FailureReason] = {
+    if (args.length > 0)
+      Left(true)
+    else
+      Right(FailureReason("Some exception"))
+  }
+
+  object CommandFactory {
+    val commandStore: HashMap[String, Command] = HashMap("help" -> HelpCommand)
+    
+    println("Available commands =",commandStore)
+    
+    
+    def get(inputArg: ConsoleInput): Command = {
+      val cmdName = inputArg.command
+      println("Incoming command=",cmdName)
+      if (cmdName.isEmpty)
+        commandStore.get("help").get
+      else
+        commandStore.get(cmdName).get
+    }
+  }
+
+}
